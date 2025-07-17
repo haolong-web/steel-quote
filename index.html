@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>智能钢格栅报价工具 V3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<style>
+  body{margin:0;padding:10px;font-family:Arial,sans-serif;background:#f7f7f7;line-height:1.4;}
+  h1{text-align:center;font-size:20px;margin-bottom:10px;}
+  .card{background:#fff;padding:10px;margin-bottom:12px;border-radius:8px;box-shadow:0 0 4px rgba(0,0,0,.1);}
+  label{display:block;font-size:14px;font-weight:bold;margin-bottom:4px;}
+  input,select{width:100%;padding:8px;font-size:16px;margin-bottom:8px;border:1px solid #ccc;border-radius:4px;box-sizing:border-box;}
+  .checkbox{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  button{width:100%;padding:12px;font-size:18px;border:none;border-radius:6px;background:#28a745;color:#fff;cursor:pointer;}
+  button:active{opacity:.85;}
+  .note{font-size:12px;color:#666;margin:-4px 0 8px 0;}
+  .result{margin-top:12px;background:#fefefe;border:1px solid #ddd;border-radius:6px;padding:10px;font-size:14px;overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;min-width:380px;font-size:14px;}
+  th,td{border:1px solid #ccc;padding:6px;text-align:right;}
+  th:first-child,td:first-child{text-align:left;}
+  .tot{font-weight:bold;color:#28a745;}
+  .hidden{display:none;}
+</style>
+</head>
+<body>
+<h1>智能钢格栅报价 V3</h1>
+
+<!-- 结构类型 -->
+<div class="card">
+  <label>结构类型</label>
+  <select id="structType">
+    <option value="welded" selected>普通焊接钢格栅（横扁钢 + 麻花钢）</option>
+    <option value="presslock">插接钢格栅（横竖扁钢）</option>
+  </select>
+  <div class="note">插接钢格栅也叫压锁/插接式钢格板，横竖均扁钢。</div>
+</div>
+
+<!-- 型号选择（影响横向参数） -->
+<div class="card">
+  <label>型号选择（影响横向扁钢）</label>
+  <select id="model">
+    <option value="custom">自定义</option>
+    <option value="G253/30/100">G253/30/100 (25×3, 横距30, 竖100)</option>
+    <option value="G325/30/100" selected>G325/30/100 (32×5, 横距30, 竖100)</option>
+    <option value="G405/30/100">G405/30/100 (40×5, 横距30, 竖100)</option>
+  </select>
+  <div class="note">选择型号自动填充横向参数；竖向请按实际填写。</div>
+</div>
+
+<!-- 几何参数：横向（扁钢） -->
+<div class="card" id="horizCard">
+  <label>横向扁钢宽 (mm)</label><input id="hFlatWidth" type="number" value="32">
+  <label>横向扁钢厚 (mm)</label><input id="hFlatThk" type="number" value="5">
+  <label>横向间距 (mm)</label><input id="hPitch" type="number" value="30">
+</div>
+
+<!-- 几何参数：竖向（焊接模式=麻花钢 / 插接模式=扁钢） -->
+<div class="card" id="vertWeldedCard">
+  <label>麻花钢直径 (mm)</label><input id="twistDia" type="number" value="6">
+  <label>麻花钢间距 (mm)</label><input id="twistPitch" type="number" value="100">
+</div>
+
+<div class="card hidden" id="vertPressCard">
+  <label>竖向扁钢宽 (mm)</label><input id="vFlatWidth" type="number" value="32">
+  <label>竖向扁钢厚 (mm)</label><input id="vFlatThk" type="number" value="5">
+  <label>竖向间距 (mm)</label><input id="vPitch" type="number" value="100">
+</div>
+
+<!-- 板尺寸 & 数量 -->
+<div class="card">
+  <label>板宽 (mm)</label><input id="panelWidth" type="number" value="1000">
+  <label>板长 (mm)</label><input id="panelLen" type="number" value="1000">
+  <label>数量 (片)</label><input id="qty" type="number" value="1" min="1">
+</div>
+
+<!-- 单价 & 费用 -->
+<div class="card">
+  <div id="flatPriceBox">
+    <label>横向扁钢单价 (元/吨)</label><input id="hFlatPrice" type="number" value="4500">
+  </div>
+  <div id="twistPriceBox">
+    <label>麻花钢单价 (元/吨)</label><input id="twistPrice" type="number" value="4800">
+  </div>
+  <div id="vFlatPriceBox" class="hidden">
+    <label>竖向扁钢单价 (元/吨)</label><input id="vFlatPrice" type="number" value="4500">
+  </div>
+  <label>焊工/组装费 (元/片)</label><input id="weldFee" type="number" value="15">
+  <label>镀锌费 (元/吨)</label><input id="galvFee" type="number" value="600">
+  <label>运费 (总额元)</label><input id="freightFee" type="number" value="200">
+</div>
+
+<!-- 利润金额 -->
+<div class="card">
+  <label>利润模式</label>
+  <select id="profitMode">
+    <option value="none">不加利润</option>
+    <option value="per_piece" selected>每片添加利润金额</option>
+    <option value="total">整单利润金额</option>
+  </select>
+  <label>利润金额 (元)</label>
+  <input id="profitValue" type="number" value="100">
+  <div class="note" id="profitNote">当前：每片加 100 元。</div>
+</div>
+
+<!-- 税 -->
+<div class="card">
+  <div class="checkbox">
+    <input type="checkbox" id="addTax" checked>
+    <label for="addTax" style="font-weight:normal;">包含税费</label>
+  </div>
+  <label>税率 (%)</label><input id="taxRate" type="number" value="13">
+  <div class="note">取消勾选则不计税，税额=0。</div>
+</div>
+
+<!-- 计算 -->
+<div class="card">
+  <button id="calcBtn">计算报价</button>
+  <div id="result" class="result hidden"></div>
+</div>
+
+<script>
+/* -------- 型号预设：只影响横向扁钢 + 竖向默认间距参考 -------- */
+const MODEL_PRESETS={
+  "G253/30/100":{hFlatWidth:25,hFlatThk:3,hPitch:30,vertRef:100},
+  "G325/30/100":{hFlatWidth:32,hFlatThk:5,hPitch:30,vertRef:100},
+  "G405/30/100":{hFlatWidth:40,hFlatThk:5,hPitch:30,vertRef:100}
+};
+
+/* -------- 元素引用 -------- */
+const elStructType=document.getElementById('structType');
+
+const elModel=document.getElementById('model');
+
+const elHFlatWidth=document.getElementById('hFlatWidth');
+const elHFlatThk=document.getElementById('hFlatThk');
+const elHPitch=document.getElementById('hPitch');
+
+const elTwistDia=document.getElementById('twistDia');
+const elTwistPitch=document.getElementById('twistPitch');
+
+const elVFlatWidth=document.getElementById('vFlatWidth');
+const elVFlatThk=document.getElementById('vFlatThk');
+const elVPitch=document.getElementById('vPitch');
+
+const elPanelWidth=document.getElementById('panelWidth');
+const elPanelLen=document.getElementById('panelLen');
+const elQty=document.getElementById('qty');
+
+const elHFlatPrice=document.getElementById('hFlatPrice');
+const elTwistPrice=document.getElementById('twistPrice');
+const elVFlatPrice=document.getElementById('vFlatPrice');
+
+const elWeldFee=document.getElementById('weldFee');
+const elGalvFee=document.getElementById('galvFee');
+const elFreightFee=document.getElementById('freightFee');
+
+const elProfitMode=document.getElementById('profitMode');
+const elProfitValue=document.getElementById('profitValue');
+const elProfitNote=document.getElementById('profitNote');
+
+const elAddTax=document.getElementById('addTax');
+const elTaxRate=document.getElementById('taxRate');
+
+const elCalcBtn=document.getElementById('calcBtn');
+const elResult=document.getElementById('result');
+
+const elVertWeldedCard=document.getElementById('vertWeldedCard');
+const elVertPressCard=document.getElementById('vertPressCard');
+const elTwistPriceBox=document.getElementById('twistPriceBox');
+const elVFlatPriceBox=document.getElementById('vFlatPriceBox');
+
+/* -------- 工具函数 -------- */
+function n(el){return parseFloat(el.value||'0');}
+function kgFromMm(area_mm2,len_mm){return area_mm2*len_mm*7.85e-6;} // kg
+
+/* -------- 切换结构类型：显示不同竖向参数 -------- */
+elStructType.addEventListener('change',updateStructUI);
+function updateStructUI(){
+  const t=elStructType.value;
+  if(t==='welded'){
+    elVertWeldedCard.classList.remove('hidden');
+    elVertPressCard.classList.add('hidden');
+    elTwistPriceBox.classList.remove('hidden');
+    elVFlatPriceBox.classList.add('hidden');
+  }else{
+    elVertWeldedCard.classList.add('hidden');
+    elVertPressCard.classList.remove('hidden');
+    elTwistPriceBox.classList.add('hidden');
+    elVFlatPriceBox.classList.remove('hidden');
+  }
+}
+updateStructUI();
+
+/* -------- 切换型号自动填横向参数 -------- */
+elModel.addEventListener('change',()=>{
+  const m=elModel.value;
+  if(MODEL_PRESETS[m]){
+    const p=MODEL_PRESETS[m];
+    elHFlatWidth.value=p.hFlatWidth;
+    elHFlatThk.value=p.hFlatThk;
+    elHPitch.value=p.hPitch;
+    // 若竖向间距空 或原值=旧参考，则同步更新竖向参考值
+    if(elStructType.value==='welded'){
+      if(!elTwistPitch.value || n(elTwistPitch)==100) elTwistPitch.value=p.vertRef;
+    }else{
+      if(!elVPitch.value || n(elVPitch)==100) elVPitch.value=p.vertRef;
+    }
+  }
+});
+
+/* -------- 利润提示文字 -------- */
+function refreshProfitNote(){
+  const mode=elProfitMode.value;
+  const v=elProfitValue.value||0;
+  if(mode==='none') elProfitNote.textContent='当前：不加利润。';
+  else if(mode==='per_piece') elProfitNote.textContent=`当前：每片加 ${v} 元。`;
+  else elProfitNote.textContent=`当前：整单加 ${v} 元。`;
+}
+elProfitMode.addEventListener('change',refreshProfitNote);
+elProfitValue.addEventListener('input',refreshProfitNote);
+refreshProfitNote();
+
+/* -------- 核心计算 -------- */
+function calcQuote(){
+  const struct=elStructType.value;
+  const qty=n(elQty);
+
+  // 尺寸
+  const panelW=n(elPanelWidth);
+  const panelL=n(elPanelLen);
+
+  // 横向扁钢
+  const hw=n(elHFlatWidth);
+  const ht=n(elHFlatThk);
+  const hp=n(elHPitch);
+
+  // 竖向材料
+  let flatCount, vertCount;
+  let horizPanelKg=0, vertPanelKg=0;
+  let horizTon=0, vertTon=0;
+  let horizPrice=n(elHFlatPrice), vertPrice=0;
+
+  if(!(qty>0 && panelW>0 && panelL>0 && hw>0 && ht>0 && hp>0)){
+    return {error:"请确认数量、板尺寸、横向扁钢参数均大于 0。"};
+  }
+
+  /* 横向根数（沿板宽方向布置） */
+  flatCount=Math.floor(panelW/hp)+1;
+  const hArea=hw*ht; //mm²
+  const horizOneKg=kgFromMm(hArea,panelL);
+  horizPanelKg=horizOneKg*flatCount;
+  horizTon=(horizPanelKg*qty)/1000;
+
+  if(struct==='welded'){
+    const td=n(elTwistDia);
+    const tp=n(elTwistPitch);
+    if(!(td>0 && tp>0)){
+      return {error:"请确认麻花钢直径与间距大于 0。"};
+    }
+    vertCount=Math.floor(panelL/tp)+1;
+    const tArea=Math.PI*Math.pow(td/2,2);
+    const twistOneKg=kgFromMm(tArea,panelW);
+    vertPanelKg=twistOneKg*vertCount;
+    vertTon=(vertPanelKg*qty)/1000;
+    vertPrice=n(elTwistPrice);
+  }else{ // presslock 插接
+    const vw=n(elVFlatWidth);
+    const vt=n(elVFlatThk);
+    const vp=n(elVPitch);
+    if(!(vw>0 && vt>0 && vp>0)){
+      return {error:"请确认竖向扁钢参数大于 0。"};
+    }
+    vertCount=Math.floor(panelL/vp)+1;
+    const vArea=vw*vt;
+    const vOneKg=kgFromMm(vArea,panelW);
+    vertPanelKg=vOneKg*vertCount;
+    vertTon=(vertPanelKg*qty)/1000;
+    vertPrice=n(elVFlatPrice);
+  }
+
+  /* 重量汇总 */
+  const singleKg=horizPanelKg+vertPanelKg;
+  const totalKg=singleKg*qty;
+  const totalTon=totalKg/1000;
+
+  /* 费用 */
+  const costHoriz=horizTon*horizPrice;
+  const costVert=vertTon*vertPrice;
+  const costGalv=totalTon*n(elGalvFee);
+  const costWeld=n(elWeldFee)*qty;
+  const costFreight=n(elFreightFee);
+
+  const subtotal=costHoriz+costVert+costGalv+costWeld+costFreight;
+
+  /* 利润金额 */
+  const pMode=elProfitMode.value;
+  const pVal=n(elProfitValue);
+  let profitAmt=0;
+  if(pMode==='per_piece') profitAmt=pVal*qty;
+  else if(pMode==='total') profitAmt=pVal;
+
+  const beforeTax=subtotal+profitAmt;
+
+  /* 税 */
+  const addTax=elAddTax.checked;
+  const taxRate=n(elTaxRate)/100;
+  const taxAmt=addTax?beforeTax*taxRate:0;
+
+  const grandTotal=beforeTax+taxAmt;
+  const unitPrice=grandTotal/qty;
+
+  return {
+    struct,
+    flatCount,vertCount,
+    horizPanelKg,vertPanelKg,
+    singleKg,totalKg,
+    costHoriz,costVert,costGalv,costWeld,costFreight,
+    subtotal,profitAmt,beforeTax,taxAmt,
+    grandTotal,unitPrice,qty,addTax
+  };
+}
+
+/* -------- 渲染结果 -------- */
+function renderQuote(r){
+  if(r.error){
+    elResult.classList.remove('hidden');
+    elResult.innerHTML=`<span style="color:red;">${r.error}</span>`;
+    return;
+  }
+  elResult.classList.remove('hidden');
+
+  const horizLabel = (r.struct==='welded') ? '扁钢材料费' : '横向扁钢材料费';
+  const vertLabel  = (r.struct==='welded') ? '麻花钢材料费' : '竖向扁钢材料费';
+  const horizKgLabel = (r.struct==='welded') ? '扁钢重量(kg)' : '横扁钢重量(kg)';
+  const vertKgLabel  = (r.struct==='welded') ? '麻花钢重量(kg)' : '竖扁钢重量(kg)';
+
+  const rowsTax = r.addTax
+    ? `<tr><td>税额</td><td>-</td><td>${r.taxAmt.toFixed(2)}</td></tr>`
+    : '';
+
+  elResult.innerHTML=`
+    <table>
+      <tr><th>项目</th><th>单片</th><th>合计</th></tr>
+      <tr><td>横根数</td><td>${r.flatCount}</td><td>${r.flatCount*r.qty}</td></tr>
+      <tr><td>竖根数</td><td>${r.vertCount}</td><td>${r.vertCount*r.qty}</td></tr>
+      <tr><td>${horizKgLabel}</td><td>${r.horizPanelKg.toFixed(2)}</td><td>${(r.horizPanelKg*r.qty).toFixed(2)}</td></tr>
+      <tr><td>${vertKgLabel}</td><td>${r.vertPanelKg.toFixed(2)}</td><td>${(r.vertPanelKg*r.qty).toFixed(2)}</td></tr>
+      <tr><td><strong>总重量(kg)</strong></td><td><strong>${r.singleKg.toFixed(2)}</strong></td><td><strong>${r.totalKg.toFixed(2)}</strong></td></tr>
+      <tr><td>${horizLabel}</td><td>-</td><td>${r.costHoriz.toFixed(2)}</td></tr>
+      <tr><td>${vertLabel}</td><td>-</td><td>${r.costVert.toFixed(2)}</td></tr>
+      <tr><td>镀锌费</td><td>-</td><td>${r.costGalv.toFixed(2)}</td></tr>
+      <tr><td>焊工/组装费</td><td>${(r.costWeld/r.qty).toFixed(2)}</td><td>${r.costWeld.toFixed(2)}</td></tr>
+      <tr><td>运费</td><td>-</td><td>${r.costFreight.toFixed(2)}</td></tr>
+      <tr><td>利润金额</td><td>-</td><td>${r.profitAmt.toFixed(2)}</td></tr>
+      ${rowsTax}
+      <tr class="tot"><td>总价${r.addTax?'(含税)':''}</td><td>${r.unitPrice.toFixed(2)}</td><td>${r.grandTotal.toFixed(2)}</td></tr>
+    </table>
+  `;
+}
+
+/* -------- 计算按钮 -------- */
+elCalcBtn.addEventListener('click',()=>{
+  const r=calcQuote();
+  renderQuote(r);
+});
+</script>
+</body>
+</html>
