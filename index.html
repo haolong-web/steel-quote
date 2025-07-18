@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>钢格栅报价工具 V5</title>
+<style>
+    body {margin:0;padding:0;font-family:"Segoe UI",Arial,sans-serif;background:#f4f7fa;color:#333;}
+    h1 {text-align:center;font-size:24px;margin:15px 0;color:#007bff;}
+    .container {padding:15px;max-width:800px;margin:auto;}
+    .card {background:#fff;border-radius:12px;box-shadow:0 4px 8px rgba(0,0,0,0.08);padding:15px;margin-bottom:15px;}
+    .card h2 {font-size:18px;margin-bottom:10px;color:#007bff;}
+    label {display:block;font-size:14px;margin:8px 0 4px;}
+    input,select {width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;font-size:16px;margin-bottom:10px;}
+    .note {font-size:12px;color:#666;margin-top:-6px;margin-bottom:10px;}
+    button {width:100%;padding:14px;font-size:18px;font-weight:bold;border:none;border-radius:8px;background:linear-gradient(90deg,#007bff,#00c6ff);color:#fff;cursor:pointer;transition:0.3s;}
+    button:hover {opacity:0.9;}
+    .result {margin-top:15px;background:#fff;border-radius:12px;padding:15px;box-shadow:0 4px 8px rgba(0,0,0,0.1);display:none;}
+    table {width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;}
+    th,td {border:1px solid #ddd;padding:8px;text-align:right;}
+    th:first-child,td:first-child {text-align:left;}
+    .tot {font-weight:bold;color:#007bff;}
+    details summary {font-size:16px;font-weight:bold;cursor:pointer;padding:6px 0;color:#333;}
+</style>
+</head>
+<body>
+<h1>智能钢格栅报价 V5</h1>
+<div class="container">
+    <!-- 基础信息 -->
+    <div class="card">
+        <h2>📏 基础信息</h2>
+        <label>结构类型</label>
+        <select id="structType">
+            <option value="welded" selected>普通焊接钢格栅</option>
+            <option value="presslock">插接钢格栅</option>
+        </select>
+        <label>板宽(mm)</label><input id="panelWidth" type="number" value="1000">
+        <label>板长(mm)</label><input id="panelLen" type="number" value="1000">
+        <label>数量(片)</label><input id="qty" type="number" value="1">
+    </div>
+
+    <!-- 材料参数 -->
+    <div class="card">
+        <h2>⚙ 材料参数</h2>
+        <label>横向扁钢宽(mm)</label><input id="hFlatWidth" type="number" value="32">
+        <label>横向扁钢厚(mm)</label><input id="hFlatThk" type="number" value="5">
+        <label>横向间距(mm)</label><input id="hPitch" type="number" value="30">
+        <div id="weldedParams">
+            <label>麻花钢直径(mm)</label><input id="twistDia" type="number" value="6">
+            <label>麻花钢间距(mm)</label><input id="twistPitch" type="number" value="100">
+        </div>
+        <div id="presslockParams" style="display:none;">
+            <label>竖向扁钢宽(mm)</label><input id="vFlatWidth" type="number" value="32">
+            <label>竖向扁钢厚(mm)</label><input id="vFlatThk" type="number" value="5">
+            <label>竖向间距(mm)</label><input id="vPitch" type="number" value="100">
+        </div>
+        <label>损耗率(%)</label><input id="lossRate" type="number" value="3">
+    </div>
+
+    <!-- 费用 -->
+    <div class="card">
+        <h2>💰 费用参数</h2>
+        <label>扁钢单价(元/吨)</label><input id="flatPrice" type="number" value="4500">
+        <label>麻花钢单价(元/吨)</label><input id="twistPrice" type="number" value="4800">
+        <label>焊工/组装费(元/片)</label><input id="weldFee" type="number" value="15">
+        <label>镀锌费(元/吨)</label><input id="galvFee" type="number" value="600">
+        <label>运费(总额元)</label><input id="freightFee" type="number" value="200">
+    </div>
+
+    <!-- 高级选项 -->
+    <details class="card">
+        <summary>高级选项 ⚡</summary>
+        <label>利润模式</label>
+        <select id="profitMode">
+            <option value="none">不加利润</option>
+            <option value="per_piece" selected>每片固定金额</option>
+            <option value="total">整单固定金额</option>
+        </select>
+        <label>利润金额(元)</label><input id="profitValue" type="number" value="100">
+        <label><input type="checkbox" id="addTax" checked> 含税</label>
+        <label>税率(%)</label><input id="taxRate" type="number" value="13">
+    </details>
+
+    <!-- 计算按钮 -->
+    <div class="card">
+        <button onclick="calc()">立即计算报价</button>
+    </div>
+
+    <!-- 结果 -->
+    <div id="result" class="result"></div>
+</div>
+
+<script>
+function num(id){return parseFloat(document.getElementById(id).value)||0;}
+function calc(){
+    const type=document.getElementById('structType').value;
+    const w=num('panelWidth'), l=num('panelLen'), qty=num('qty');
+    const hw=num('hFlatWidth'), ht=num('hFlatThk'), hp=num('hPitch');
+    const loss=num('lossRate')/100;
+    const weldFee=num('weldFee'), galvFee=num('galvFee'), freight=num('freightFee');
+    const flatPrice=num('flatPrice'), twistPrice=num('twistPrice');
+    const taxChecked=document.getElementById('addTax').checked;
+    const taxRate=num('taxRate')/100;
+    const pMode=document.getElementById('profitMode').value, pVal=num('profitValue');
+
+    const vW=num('vFlatWidth'), vT=num('vFlatThk'), vPitch=num('vPitch');
+    const tD=num('twistDia'), tPitch=num('twistPitch');
+
+    const hCount=(hp>0)?Math.ceil(w/hp)+1:0;
+    const vCount=(type==='welded')?(tPitch>0?Math.ceil(l/tPitch)+1:0):(vPitch>0?Math.ceil(l/vPitch)+1:0);
+
+    function kg(area,len){return area*len*7.85e-6;}
+
+    const hArea=hw*ht;
+    const horizKg=kg(hArea,l)*hCount;
+    let vertKg=0;
+    if(type==='welded'){vertKg=kg(Math.PI*(tD/2)**2,w)*vCount;} else {vertKg=kg(vW*vT,w)*vCount;}
+    const frameKg=kg(hw*ht,w*2)+kg(hw*ht,l*2);
+    const totalKg=(horizKg+vertKg+frameKg)*(1+loss);
+    const totalTon=totalKg/1000;
+    const horizTon=horizKg*qty/1000, vertTon=vertKg*qty/1000;
+
+    const costFlat=horizTon*flatPrice+(type==='presslock'?(vertTon*flatPrice):0);
+    const costTwist=(type==='welded')?vertTon*twistPrice:0;
+    const costGalv=totalTon*galvFee;
+    const costWeld=weldFee*qty;
+    const subtotal=costFlat+costTwist+costGalv+costWeld+freight;
+
+    let profit=0;
+    if(pMode==='per_piece') profit=pVal*qty;
+    else if(pMode==='total') profit=pVal;
+
+    const beforeTax=subtotal+profit;
+    const tax=taxChecked?beforeTax*taxRate:0;
+    const grandTotal=beforeTax+tax;
+    const unitPrice=qty>0?(grandTotal/qty):0;
+
+    document.getElementById('result').style.display='block';
+    document.getElementById('result').innerHTML=`
+    <h2>📊 报价结果</h2>
+    <table>
+        <tr><th>项目</th><th>数值</th></tr>
+        <tr><td>横向根数</td><td>${hCount}</td></tr>
+        <tr><td>竖向根数</td><td>${vCount}</td></tr>
+        <tr><td>单片重量(kg)</td><td>${(totalKg/qty).toFixed(2)}</td></tr>
+        <tr><td>总重量(kg)</td><td>${totalKg.toFixed(2)}</td></tr>
+        <tr><td>材料费</td><td>${(costFlat+costTwist).toFixed(2)}</td></tr>
+        <tr><td>镀锌费</td><td>${costGalv.toFixed(2)}</td></tr>
+        <tr><td>焊工费</td><td>${costWeld.toFixed(2)}</td></tr>
+        <tr><td>运费</td><td>${freight.toFixed(2)}</td></tr>
+        <tr><td>利润</td><td>${profit.toFixed(2)}</td></tr>
+        ${taxChecked?`<tr><td>税额</td><td>${tax.toFixed(2)}</td></tr>`:''}
+        <tr class="tot"><td>合计</td><td>${grandTotal.toFixed(2)}</td></tr>
+        <tr class="tot"><td>单价</td><td>${unitPrice.toFixed(2)}</td></tr>
+    </table>`;
+}
+document.getElementById('structType').addEventListener('change',function(){
+    document.getElementById('weldedParams').style.display=this.value==='welded'?'block':'none';
+    document.getElementById('presslockParams').style.display=this.value==='presslock'?'block':'none';
+});
+</script>
+</body>
+</html>
